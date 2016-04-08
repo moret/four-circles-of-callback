@@ -1,43 +1,46 @@
 import fs from 'fs';
 import http from 'http';
 
-function get(path, cb) {
-  http.get(`http://localhost:3000/${path}`, response => {
-    let body = '';
-    if (response.status != 200) {
-      cb('http error');
-      return;
-    }
-    response.on('data', chunk => {
-      body += chunk;
-    });
-    response.on('end', () => {
-      const result = JSON.parse(body);
-      cb(undefined, result);
+function getPromise(path) {
+  return new Promise((fullfill, reject) => {
+    http.get(`http://localhost:3000/${path}`, response => {
+      let body = '';
+      if (response.statusCode != 200) {
+        reject(`http error: ${path}`);
+        return;
+      }
+      response.on('data', chunk => {
+        body += chunk;
+      });
+      response.on('end', () => {
+        const result = JSON.parse(body);
+        fullfill(result);
+      });
     });
   });
 }
 
-get('userxxx', (err, user) => {
-  if (err) {
-    console.log(err);
-    return;
-  }
-
-  fs.readFile(`${user.name}.json`, (err, data) => {
-    if (err) {
-      console.log(err);
-      return;
-    }
-
-    const details = JSON.parse(data);
-    get(`reports/${user.name}?secret=${details.secret}`, (err, result) => {
+function readPromise(file) {
+  return new Promise((fullfill, reject) => {
+    fs.readFile(file, (err, data) => {
       if (err) {
-        console.log(err);
+        reject(err);
         return;
       }
 
-      console.log(result);
+      fullfill(JSON.parse(data));
     });
   });
+}
+
+let user;
+getPromise('user').then(apiUser => {
+  user = apiUser;
+  return readPromise(`${user.name}.json`);
+}).then(details => {
+  return getPromise(`reports/${user.name}?secret=${details.secret}`);
+}).then(result => {
+  console.log(result);
+}).catch(err => {
+  console.log(err);
 });
