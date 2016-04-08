@@ -33,14 +33,15 @@ function readPromise(file) {
   });
 }
 
-let user;
-getPromise('user').then(apiUser => {
-  user = apiUser;
-  return readPromise(`${user.name}.json`);
-}).then(details => {
-  return getPromise(`reports/${user.name}?secret=${details.secret}`);
-}).then(result => {
-  console.log(result);
-}).catch(err => {
-  console.log(err);
-});
+async function report() {
+  try {  
+    const user = await getPromise('user');
+    const details = await readPromise(`${user.name}.json`);
+    const result = await getPromise(`reports/${user.name}?secret=${details.secret}`);
+    console.log(result);
+  } catch (e) {
+    console.log(e);
+  }
+}
+
+report();
